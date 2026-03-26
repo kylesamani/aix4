@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 interface PromptInputProps {
   onSubmit: (prompt: string) => void;
   onCompare: () => void;
+  onOpenApiKeySettings: () => void;
   isComparing: boolean;
   isDark: boolean;
 }
@@ -15,7 +16,7 @@ const MAX_ROWS = 10;
 const MAX_TEXTAREA_HEIGHT = LINE_HEIGHT * MAX_ROWS;
 const DEFAULT_BOTTOM_HEIGHT = 110;
 
-export function PromptInput({ onSubmit, onCompare, isComparing, isDark }: PromptInputProps) {
+export function PromptInput({ onSubmit, onCompare, onOpenApiKeySettings, isComparing, isDark }: PromptInputProps) {
   const [prompt, setPrompt] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -197,6 +198,19 @@ export function PromptInput({ onSubmit, onCompare, isComparing, isDark }: Prompt
           ) : (
             'Compare'
           )}
+        </button>
+        <button
+          onClick={onOpenApiKeySettings}
+          title="Configure Claude API key"
+          className={`
+            no-drag w-10 h-10 rounded-xl font-bold transition-all text-sm flex-shrink-0 flex items-center justify-center
+            ${isDark
+              ? 'text-gray-400 hover:text-white hover:bg-gray-600'
+              : 'text-gray-400 hover:text-gray-700 hover:bg-gray-200'
+            }
+          `}
+        >
+          ···
         </button>
       </div>
       <p className={`text-xs mt-2 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>

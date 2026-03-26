@@ -4,6 +4,7 @@ import { MenuBar } from './components/MenuBar';
 import { PromptInput } from './components/PromptInput';
 import { LoadingBars } from './components/LoadingBars';
 import { ComparisonPanel } from './components/ComparisonPanel';
+import { ApiKeyModal } from './components/ApiKeyModal';
 import { AIProvider, ViewMode, Theme, UserPreferences, DEFAULT_PREFERENCES, Tab, TabState, LoadingState, ComparisonState } from '../shared/types';
 
 function App() {
@@ -13,6 +14,8 @@ function App() {
   const [loadingState, setLoadingState] = useState<LoadingState>({});
   const [comparisonState, setComparisonState] = useState<ComparisonState>({ phase: 'idle' });
   const [compareActive, setCompareActive] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [pendingCompare, setPendingCompare] = useState(false);
 
   useEffect(() => {
     // Load initial preferences
@@ -99,7 +102,7 @@ function App() {
     window.electronAPI?.createTab();
   };
 
-  const handleCompare = async () => {
+  const runCompare = async () => {
     setCompareActive(true);
     window.electronAPI?.hideAllViews();
     setComparisonState({ phase: 'extracting' });
@@ -119,6 +122,31 @@ function App() {
     } catch (err: any) {
       setComparisonState({ phase: 'error', message: err.message || 'Comparison failed' });
     }
+  };
+
+  const handleCompare = async () => {
+    const hasKey = await window.electronAPI?.hasClaudeApiKey();
+    if (!hasKey) {
+      setPendingCompare(true);
+      setShowApiKeyModal(true);
+      return;
+    }
+    runCompare();
+  };
+
+  const handleSaveApiKey = (apiKey: string) => {
+    window.electronAPI?.setClaudeApiKey(apiKey);
+    setShowApiKeyModal(false);
+    if (pendingCompare) {
+      setPendingCompare(false);
+      // Small delay to let the key persist before comparing
+      setTimeout(() => runCompare(), 100);
+    }
+  };
+
+  const handleOpenApiKeySettings = () => {
+    setPendingCompare(false);
+    setShowApiKeyModal(true);
   };
 
   const handleCompareTabSelect = () => {
@@ -189,10 +217,19 @@ function App() {
         <PromptInput
           onSubmit={handleSendPrompt}
           onCompare={handleCompare}
+          onOpenApiKeySettings={handleOpenApiKeySettings}
           isComparing={comparisonState.phase !== 'idle' && comparisonState.phase !== 'done'}
           isDark={isDark}
         />
       </div>
+
+      {showApiKeyModal && (
+        <ApiKeyModal
+          isDark={isDark}
+          onSave={handleSaveApiKey}
+          onClose={() => { setShowApiKeyModal(false); setPendingCompare(false); }}
+        />
+      )}
     </div>
   );
 }

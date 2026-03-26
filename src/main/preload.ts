@@ -42,6 +42,8 @@ const electronAPI = {
 
   // Compare responses
   compareResponses: (): Promise<ComparisonResult> => ipcRenderer.invoke('compare-responses'),
+  hasClaudeApiKey: (): Promise<boolean> => ipcRenderer.invoke('has-claude-api-key'),
+  getMaskedClaudeApiKey: (): Promise<string> => ipcRenderer.invoke('get-masked-claude-api-key'),
   setClaudeApiKey: (apiKey: string) => ipcRenderer.send('set-claude-api-key', { apiKey }),
 };
 

@@ -1,16 +1,8 @@
 import { app, BrowserWindow, ipcMain, nativeTheme, systemPreferences, Menu, globalShortcut } from 'electron';
 import * as path from 'path';
-import { config as dotenvConfig } from 'dotenv';
 import Store from 'electron-store';
 import { BrowserViewManager } from './browserViews';
 import { DEFAULT_PREFERENCES, UserPreferences, AIProvider, ViewMode, Theme, ExtractedResponse, ComparisonResult } from '../shared/types';
-
-// Load .env file for API keys
-// Try multiple locations: packaged app resources, project root, relative to source
-dotenvConfig({ path: path.join(process.resourcesPath || '', '.env') });
-dotenvConfig({ path: path.join(app.getAppPath(), '.env') });
-dotenvConfig({ path: path.join(process.cwd(), '.env') });
-dotenvConfig({ path: path.join(__dirname, '..', '..', '.env') });
 
 // Enable WebAuthn/Passkey support
 app.commandLine.appendSwitch('enable-features', 'WebAuthenticationMacOSPasskeys');
@@ -336,9 +328,9 @@ ipcMain.on('show-all-views', () => {
 // Compare responses
 async function callClaudeAPI(responses: ExtractedResponse[]): Promise<string> {
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
-  const apiKey = store.get('preferences').claudeApiKey || process.env.ANTHROPIC_API_KEY;
+  const apiKey = store.get('preferences').claudeApiKey;
   if (!apiKey) {
-    throw new Error('Claude API key not configured. Set ANTHROPIC_API_KEY in .env or configure it in app preferences.');
+    throw new Error('Claude API key not configured. Click the ··· button next to Compare to add your key.');
   }
 
   const client = new Anthropic({ apiKey });
@@ -406,6 +398,17 @@ ipcMain.handle('compare-responses', async (): Promise<ComparisonResult> => {
       timestamp: Date.now(),
     };
   }
+});
+
+ipcMain.handle('has-claude-api-key', () => {
+  return !!store.get('preferences').claudeApiKey;
+});
+
+ipcMain.handle('get-masked-claude-api-key', () => {
+  const key = store.get('preferences').claudeApiKey;
+  if (!key) return '';
+  // Show first 10 chars, mask the rest
+  return key.slice(0, 10) + '•'.repeat(Math.max(0, key.length - 10));
 });
 
 ipcMain.on('set-claude-api-key', (_event, { apiKey }: { apiKey: string }) => {
