@@ -48,9 +48,6 @@
     "files": [
       "dist/**/*"
     ],
-    "extraResources": [
-      { "from": ".env", "to": ".env" }
-    ],
     "mac": {
       "target": "dir",
       "category": "public.app-category.productivity",
