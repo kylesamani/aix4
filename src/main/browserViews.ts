@@ -688,6 +688,21 @@ export class BrowserViewManager {
     }
   }
 
+  getShareLinks(): { aiId: AIProvider; name: string; url: string }[] {
+    if (!this.activeTabId) return [];
+    const tabViews = this.tabs.get(this.activeTabId);
+    if (!tabViews) return [];
+
+    return this.order.map(aiId => {
+      const view = tabViews.views.get(aiId);
+      return {
+        aiId,
+        name: AI_CONFIGS[aiId].name,
+        url: view ? view.webContents.getURL() : AI_CONFIGS[aiId].url,
+      };
+    });
+  }
+
   hideAllViews() {
     if (!this.activeTabId) return;
     const tabViews = this.tabs.get(this.activeTabId);

@@ -40,6 +40,9 @@ const electronAPI = {
   hideAllViews: () => ipcRenderer.send('hide-all-views'),
   showAllViews: () => ipcRenderer.send('show-all-views'),
 
+  // Share links
+  getShareLinks: (): Promise<{ aiId: string; name: string; url: string }[]> => ipcRenderer.invoke('get-share-links'),
+
   // Compare responses
   compareResponses: (): Promise<ComparisonResult> => ipcRenderer.invoke('compare-responses'),
   hasClaudeApiKey: (): Promise<boolean> => ipcRenderer.invoke('has-claude-api-key'),

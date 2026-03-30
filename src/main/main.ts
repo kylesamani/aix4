@@ -313,6 +313,11 @@ ipcMain.on('set-bottom-height', (_event, { height }: { height: number }) => {
   }
 });
 
+ipcMain.handle('get-share-links', () => {
+  if (!viewManager) return [];
+  return viewManager.getShareLinks();
+});
+
 ipcMain.on('hide-all-views', () => {
   if (viewManager) {
     viewManager.hideAllViews();

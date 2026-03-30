@@ -102,6 +102,20 @@ function App() {
     window.electronAPI?.createTab();
   };
 
+  const handleShare = async (tabId: string) => {
+    // Make sure this tab is active so we get its links
+    if (tabId !== tabState.activeTabId) {
+      window.electronAPI?.setActiveTab(tabId);
+      // Small delay to let the tab activate
+      await new Promise(r => setTimeout(r, 100));
+    }
+    const links = await window.electronAPI?.getShareLinks();
+    if (links && links.length > 0) {
+      const text = links.map(l => `${l.name}\n${l.url}`).join('\n\n');
+      await navigator.clipboard.writeText(text);
+    }
+  };
+
   const runCompare = async () => {
     setCompareActive(true);
     window.electronAPI?.hideAllViews();
@@ -184,6 +198,7 @@ function App() {
           onTabSelect={handleTabSelect}
           onTabClose={handleTabClose}
           onNewTab={handleNewTab}
+          onShare={handleShare}
           isDark={isDark}
           compareActive={compareActive}
           hasComparison={comparisonState.phase !== 'idle'}
