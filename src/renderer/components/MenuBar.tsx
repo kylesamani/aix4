@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -42,6 +42,7 @@ interface SortableAIChipProps {
 
 function SortableAIChip({ ai, isFocused, viewMode, onFocusClick, onNavigate, isDark }: SortableAIChipProps) {
   const [hovered, setHovered] = useState(false);
+  const leaveTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: ai });
   const config = AI_CONFIGS[ai];
 
@@ -52,11 +53,20 @@ function SortableAIChip({ ai, isFocused, viewMode, onFocusClick, onNavigate, isD
 
   const showToolbar = viewMode === 'focus' && isFocused && hovered;
 
+  const handleMouseEnter = () => {
+    if (leaveTimeout.current) { clearTimeout(leaveTimeout.current); leaveTimeout.current = null; }
+    setHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    leaveTimeout.current = setTimeout(() => setHovered(false), 200);
+  };
+
   return (
     <div
-      className="relative"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className="flex items-center"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <div
         ref={setNodeRef}
@@ -79,29 +89,23 @@ function SortableAIChip({ ai, isFocused, viewMode, onFocusClick, onNavigate, isD
         <span className="text-sm font-medium">{config.name}</span>
       </div>
       {showToolbar && (
-        <div
-          className={`
-            absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50
-            flex items-center gap-1 px-1.5 py-1 rounded-lg shadow-lg
-            border ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'}
-          `}
-        >
+        <div className="flex items-center gap-0.5 ml-1">
           <button
-            className={`no-drag px-2 py-0.5 rounded text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+            className={`no-drag px-1.5 py-1 rounded text-xs transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
             onClick={(e) => { e.stopPropagation(); onNavigate?.('back'); }}
             title="Back"
           >
             ◀
           </button>
           <button
-            className={`no-drag px-2 py-0.5 rounded text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+            className={`no-drag px-1.5 py-1 rounded text-xs transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
             onClick={(e) => { e.stopPropagation(); onNavigate?.('refresh'); }}
             title="Refresh"
           >
             ↻
           </button>
           <button
-            className={`no-drag px-2 py-0.5 rounded text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+            className={`no-drag px-1.5 py-1 rounded text-xs transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-600'}`}
             onClick={(e) => { e.stopPropagation(); onNavigate?.('forward'); }}
             title="Forward"
           >
