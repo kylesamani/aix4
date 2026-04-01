@@ -143,6 +143,7 @@ function App() {
     if (!hasKey) {
       setPendingCompare(true);
       setShowApiKeyModal(true);
+      window.electronAPI?.hideAllViews();
       return;
     }
     runCompare();
@@ -155,12 +156,15 @@ function App() {
       setPendingCompare(false);
       // Small delay to let the key persist before comparing
       setTimeout(() => runCompare(), 100);
+    } else if (!compareActive) {
+      window.electronAPI?.showAllViews();
     }
   };
 
   const handleOpenApiKeySettings = () => {
     setPendingCompare(false);
     setShowApiKeyModal(true);
+    window.electronAPI?.hideAllViews();
   };
 
   const handleCompareTabSelect = () => {
@@ -242,7 +246,13 @@ function App() {
         <ApiKeyModal
           isDark={isDark}
           onSave={handleSaveApiKey}
-          onClose={() => { setShowApiKeyModal(false); setPendingCompare(false); }}
+          onClose={() => {
+            setShowApiKeyModal(false);
+            setPendingCompare(false);
+            if (!compareActive) {
+              window.electronAPI?.showAllViews();
+            }
+          }}
         />
       )}
     </div>

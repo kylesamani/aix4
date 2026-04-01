@@ -34,6 +34,14 @@ function createWindow() {
     trafficLightPosition: { x: 15, y: 15 },
   });
 
+  // Log renderer errors
+  mainWindow.webContents.on('console-message', (_e, level, message) => {
+    console.log(`[renderer] ${message}`);
+  });
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc) => {
+    console.log(`[did-fail-load] ${code}: ${desc}`);
+  });
+
   // Load renderer
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:5173');
