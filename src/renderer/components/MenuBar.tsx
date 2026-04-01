@@ -27,6 +27,7 @@ interface MenuBarProps {
   onThemeChange: (theme: Theme) => void;
   onReorder: (order: AIProvider[]) => void;
   onFocusChange: (ai: AIProvider | null) => void;
+  onNavigate?: (ai: AIProvider, action: 'back' | 'forward' | 'refresh') => void;
   isDark: boolean;
 }
 
@@ -35,10 +36,12 @@ interface SortableAIChipProps {
   isFocused: boolean;
   viewMode: ViewMode;
   onFocusClick: () => void;
+  onNavigate?: (action: 'back' | 'forward' | 'refresh') => void;
   isDark: boolean;
 }
 
-function SortableAIChip({ ai, isFocused, viewMode, onFocusClick, isDark }: SortableAIChipProps) {
+function SortableAIChip({ ai, isFocused, viewMode, onFocusClick, onNavigate, isDark }: SortableAIChipProps) {
+  const [hovered, setHovered] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: ai });
   const config = AI_CONFIGS[ai];
 
@@ -47,26 +50,65 @@ function SortableAIChip({ ai, isFocused, viewMode, onFocusClick, isDark }: Sorta
     transition,
   };
 
+  const showToolbar = viewMode === 'focus' && isFocused && hovered;
+
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`
-        no-drag flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-grab active:cursor-grabbing
-        ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white hover:bg-gray-50'}
-        ${isFocused && viewMode === 'focus' ? 'ring-2 ring-blue-500' : ''}
-        border ${isDark ? 'border-gray-600' : 'border-gray-200'}
-        shadow-sm transition-all
-      `}
-      onClick={onFocusClick}
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       <div
-        className="w-2.5 h-2.5 rounded-full"
-        style={{ backgroundColor: config.color }}
-      />
-      <span className="text-sm font-medium">{config.name}</span>
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className={`
+          no-drag flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-grab active:cursor-grabbing
+          ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white hover:bg-gray-50'}
+          ${isFocused && viewMode === 'focus' ? 'ring-2 ring-blue-500' : ''}
+          border ${isDark ? 'border-gray-600' : 'border-gray-200'}
+          shadow-sm transition-all
+        `}
+        onClick={onFocusClick}
+      >
+        <div
+          className="w-2.5 h-2.5 rounded-full"
+          style={{ backgroundColor: config.color }}
+        />
+        <span className="text-sm font-medium">{config.name}</span>
+      </div>
+      {showToolbar && (
+        <div
+          className={`
+            absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50
+            flex items-center gap-1 px-1.5 py-1 rounded-lg shadow-lg
+            border ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'}
+          `}
+        >
+          <button
+            className={`no-drag px-2 py-0.5 rounded text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+            onClick={(e) => { e.stopPropagation(); onNavigate?.('back'); }}
+            title="Back"
+          >
+            ◀
+          </button>
+          <button
+            className={`no-drag px-2 py-0.5 rounded text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+            onClick={(e) => { e.stopPropagation(); onNavigate?.('refresh'); }}
+            title="Refresh"
+          >
+            ↻
+          </button>
+          <button
+            className={`no-drag px-2 py-0.5 rounded text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+            onClick={(e) => { e.stopPropagation(); onNavigate?.('forward'); }}
+            title="Forward"
+          >
+            ▶
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -80,6 +122,7 @@ export function MenuBar({
   onThemeChange,
   onReorder,
   onFocusChange,
+  onNavigate,
   isDark,
 }: MenuBarProps) {
   const sensors = useSensors(
@@ -140,6 +183,7 @@ export function MenuBar({
                     onFocusChange(focusedAI === ai ? null : ai);
                   }
                 }}
+                onNavigate={(action) => onNavigate?.(ai, action)}
                 isDark={isDark}
               />
             ))}

@@ -265,6 +265,13 @@ ipcMain.on('set-focus', (_event, { ai }: { ai: AIProvider | null }) => {
   mainWindow?.webContents.send('preferences-updated', store.get('preferences'));
 });
 
+// Navigation IPC handler
+ipcMain.on('navigate-ai', (_event, { ai, action }: { ai: AIProvider; action: 'back' | 'forward' | 'refresh' }) => {
+  if (viewManager) {
+    viewManager.navigateAI(ai, action);
+  }
+});
+
 // Tab management IPC handlers
 ipcMain.handle('get-tabs', () => {
   if (!viewManager) return { tabs: [], activeTabId: null, loadingState: {} };

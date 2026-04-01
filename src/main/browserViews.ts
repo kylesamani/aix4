@@ -703,6 +703,26 @@ export class BrowserViewManager {
     });
   }
 
+  navigateAI(ai: AIProvider, action: 'back' | 'forward' | 'refresh') {
+    if (!this.activeTabId) return;
+    const tabViews = this.tabs.get(this.activeTabId);
+    if (!tabViews) return;
+    const view = tabViews.views.get(ai);
+    if (!view) return;
+
+    switch (action) {
+      case 'back':
+        if (view.webContents.canGoBack()) view.webContents.goBack();
+        break;
+      case 'forward':
+        if (view.webContents.canGoForward()) view.webContents.goForward();
+        break;
+      case 'refresh':
+        view.webContents.reload();
+        break;
+    }
+  }
+
   hideAllViews() {
     if (!this.activeTabId) return;
     const tabViews = this.tabs.get(this.activeTabId);

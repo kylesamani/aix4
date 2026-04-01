@@ -86,6 +86,10 @@ function App() {
     window.electronAPI?.setFocus(ai);
   };
 
+  const handleNavigate = (ai: AIProvider, action: 'back' | 'forward' | 'refresh') => {
+    window.electronAPI?.navigateAI(ai, action);
+  };
+
   const handleTabSelect = (tabId: string) => {
     if (compareActive) {
       setCompareActive(false);
@@ -194,6 +198,7 @@ function App() {
           onThemeChange={handleThemeChange}
           onReorder={handleReorder}
           onFocusChange={handleFocusChange}
+          onNavigate={handleNavigate}
           isDark={isDark}
         />
         <TabBar

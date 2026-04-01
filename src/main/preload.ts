@@ -40,6 +40,9 @@ const electronAPI = {
   hideAllViews: () => ipcRenderer.send('hide-all-views'),
   showAllViews: () => ipcRenderer.send('show-all-views'),
 
+  // Navigation
+  navigateAI: (ai: AIProvider, action: 'back' | 'forward' | 'refresh') => ipcRenderer.send('navigate-ai', { ai, action }),
+
   // Share links
   getShareLinks: (): Promise<{ aiId: string; name: string; url: string }[]> => ipcRenderer.invoke('get-share-links'),
 
