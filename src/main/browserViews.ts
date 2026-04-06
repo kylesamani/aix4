@@ -151,9 +151,10 @@ export class BrowserViewManager {
 
       view.webContents.loadURL(config.url);
 
-      view.webContents.setUserAgent(
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      );
+      const ua = process.platform === 'win32'
+        ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+      view.webContents.setUserAgent(ua);
 
       // Initially hide all views (will be shown when tab is activated)
       view.setBounds({ x: -10000, y: -10000, width: 100, height: 100 });

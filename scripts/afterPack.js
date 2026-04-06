@@ -8,28 +8,46 @@ function codesign(target, identity, entitlements) {
   execSync(`${args}${entArg} "${target}"`, { shell: '/bin/bash', stdio: 'pipe' });
 }
 
-// Recursively find all Mach-O binaries (dylibs, executables) inside a directory
-function findBinaries(dir) {
-  const results = [];
-  if (!fs.existsSync(dir)) return results;
+// Recursively find all Mach-O binaries and nested bundles inside a directory.
+// Returns { binaries: string[], bundles: string[] } where bundles are .app/.framework
+// dirs that must be signed as bundles (after their own contents are signed).
+function findSignables(dir) {
+  const binaries = [];
+  const bundles = [];
+  if (!fs.existsSync(dir)) return { binaries, bundles };
 
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      // Don't recurse into nested .framework or .app bundles - they get signed as bundles
-      if (!entry.name.endsWith('.framework') && !entry.name.endsWith('.app')) {
-        results.push(...findBinaries(fullPath));
+    // Resolve symlinks to determine if target is a file or directory
+    let stat;
+    try {
+      stat = fs.statSync(fullPath); // follows symlinks (unlike lstatSync)
+    } catch (e) {
+      continue; // broken symlink
+    }
+
+    if (stat.isDirectory()) {
+      if (entry.name.endsWith('.framework') || entry.name.endsWith('.app')) {
+        // Nested bundle — recurse into it, sign its contents, then sign the bundle itself
+        const nested = findSignables(fullPath);
+        binaries.push(...nested.binaries);
+        bundles.push(...nested.bundles);
+        bundles.push(fullPath); // sign the bundle last
+      } else {
+        const nested = findSignables(fullPath);
+        binaries.push(...nested.binaries);
+        bundles.push(...nested.bundles);
       }
-    } else if (entry.isFile()) {
-      // Sign .dylib files and known executable names
+    } else if (stat.isFile() && !entry.isSymbolicLink()) {
+      // Only sign real files, not symlinks (signing a symlink breaks the framework structure)
       if (entry.name.endsWith('.dylib') || entry.name.endsWith('.so')) {
-        results.push(fullPath);
+        binaries.push(fullPath);
       } else if (!entry.name.includes('.')) {
-        // Files without extensions might be executables - check with `file` command
+        // Extensionless files might be Mach-O executables
         try {
           const fileType = execSync(`file "${fullPath}"`, { encoding: 'utf8', stdio: 'pipe' });
           if (fileType.includes('Mach-O')) {
-            results.push(fullPath);
+            binaries.push(fullPath);
           }
         } catch (e) {
           // skip
@@ -37,10 +55,16 @@ function findBinaries(dir) {
       }
     }
   }
-  return results;
+  return { binaries, bundles };
 }
 
 exports.default = async function (context) {
+  // Code signing is macOS-only
+  if (process.platform !== 'darwin') {
+    console.log('  • skipping macOS code signing on', process.platform);
+    return;
+  }
+
   const appPath = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`);
   const identity = 'D13654CCEF08FC176FD95415B3885BCC00190FFD';
   const entitlements = path.resolve(__dirname, '..', 'entitlements.mac.plist');
@@ -60,26 +84,36 @@ exports.default = async function (context) {
   // Sign inside-out
   const tmpFwDir = path.join(tmpApp, 'Contents', 'Frameworks');
 
-  // 1. Sign all individual binaries inside each framework with child entitlements
+  // 1. Sign all frameworks — findSignables recurses into nested .app/.framework bundles
   for (const fw of fs.readdirSync(tmpFwDir).filter(f => f.endsWith('.framework'))) {
     const fwPath = path.join(tmpFwDir, fw);
-    const binaries = findBinaries(fwPath);
+    const { binaries, bundles } = findSignables(fwPath);
+    // Sign individual binaries first (inside-out)
     for (const bin of binaries) {
       codesign(bin, identity, childEntitlements);
       console.log(`    ✓ ${path.relative(tmpFwDir, bin)}`);
     }
-    // Then sign the framework bundle itself
+    // Sign nested bundles (already ordered inside-out by findSignables)
+    for (const bundle of bundles) {
+      codesign(bundle, identity, childEntitlements);
+      console.log(`    ✓ ${path.relative(tmpFwDir, bundle)}`);
+    }
+    // Sign the framework bundle itself
     codesign(fwPath, identity, childEntitlements);
     console.log(`    ✓ ${fw}`);
   }
 
-  // 2. Sign helper apps with child entitlements (they run V8 and need JIT)
+  // 2. Sign helper apps at the top level of Frameworks/
   for (const helper of fs.readdirSync(tmpFwDir).filter(f => f.endsWith('.app'))) {
     const helperPath = path.join(tmpFwDir, helper);
-    const binaries = findBinaries(helperPath);
+    const { binaries, bundles } = findSignables(helperPath);
     for (const bin of binaries) {
       codesign(bin, identity, childEntitlements);
       console.log(`    ✓ ${path.relative(tmpFwDir, bin)}`);
+    }
+    for (const bundle of bundles) {
+      codesign(bundle, identity, childEntitlements);
+      console.log(`    ✓ ${path.relative(tmpFwDir, bundle)}`);
     }
     codesign(helperPath, identity, childEntitlements);
     console.log(`    ✓ ${helper}`);

@@ -1,12 +1,15 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, systemPreferences, Menu, globalShortcut } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeTheme, systemPreferences, Menu, globalShortcut, shell, dialog } from 'electron';
 import * as path from 'path';
 import Store from 'electron-store';
+import { autoUpdater } from 'electron-updater';
 import { BrowserViewManager } from './browserViews';
 import { DEFAULT_PREFERENCES, UserPreferences, AIProvider, ViewMode, Theme, ExtractedResponse, ComparisonResult } from '../shared/types';
 
-// Enable WebAuthn/Passkey support
-app.commandLine.appendSwitch('enable-features', 'WebAuthenticationMacOSPasskeys');
-app.commandLine.appendSwitch('enable-web-authentication-passkeys');
+// Enable WebAuthn/Passkey support (macOS only)
+if (process.platform === 'darwin') {
+  app.commandLine.appendSwitch('enable-features', 'WebAuthenticationMacOSPasskeys');
+  app.commandLine.appendSwitch('enable-web-authentication-passkeys');
+}
 
 const store = new Store<{ preferences: UserPreferences }>({
   defaults: {
@@ -21,7 +24,7 @@ function createWindow() {
   const preferences = store.get('preferences');
   const bounds = preferences.windowBounds || { width: 1400, height: 900 };
 
-  mainWindow = new BrowserWindow({
+  const windowOptions: Electron.BrowserWindowConstructorOptions = {
     ...bounds,
     minWidth: 800,
     minHeight: 600,
@@ -30,9 +33,15 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 15, y: 15 },
-  });
+  };
+
+  // macOS-specific title bar customization
+  if (process.platform === 'darwin') {
+    windowOptions.titleBarStyle = 'hiddenInset';
+    windowOptions.trafficLightPosition = { x: 15, y: 15 };
+  }
+
+  mainWindow = new BrowserWindow(windowOptions);
 
   // Log renderer errors
   mainWindow.webContents.on('console-message', (_e, level, message) => {
@@ -90,7 +99,75 @@ function createWindow() {
 
   // Setup application menu with keyboard shortcuts
   setupMenu();
+
+  // Check for updates on launch
+  setupAutoUpdater();
 }
+
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+
+  autoUpdater.on('update-available', (info) => {
+    if (!mainWindow) return;
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Available',
+      message: `A new version (${info.version}) is available. Would you like to download and install it?`,
+      buttons: ['Download & Install', 'Later'],
+      defaultId: 0,
+      cancelId: 1,
+    }).then(({ response }) => {
+      if (response === 0) {
+        autoUpdater.downloadUpdate();
+      }
+    });
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    // Only show dialog if user manually triggered the check
+    if (manualUpdateCheck && mainWindow) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'No Updates',
+        message: 'You are running the latest version.',
+      });
+      manualUpdateCheck = false;
+    }
+  });
+
+  autoUpdater.on('update-downloaded', () => {
+    if (!mainWindow) return;
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Ready',
+      message: 'Update downloaded. The app will restart to install.',
+      buttons: ['Restart Now', 'Later'],
+      defaultId: 0,
+      cancelId: 1,
+    }).then(({ response }) => {
+      if (response === 0) {
+        autoUpdater.quitAndInstall();
+      }
+    });
+  });
+
+  autoUpdater.on('error', (err) => {
+    if (manualUpdateCheck && mainWindow) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'error',
+        title: 'Update Error',
+        message: `Failed to check for updates: ${err.message}`,
+      });
+      manualUpdateCheck = false;
+    }
+  });
+
+  // Auto-check on launch (silent — no dialog if no update)
+  autoUpdater.checkForUpdates().catch(() => {});
+}
+
+let manualUpdateCheck = false;
 
 function sendTabUpdate() {
   if (viewManager && mainWindow) {
@@ -204,6 +281,34 @@ function setupMenu() {
         { role: 'zoom' },
         { type: 'separator' },
         { role: 'front' }
+      ]
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Send Feedback...',
+          click: () => {
+            shell.openExternal('mailto:aix4@kylesamani.com?subject=AIx4%20feedback');
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Check for Updates...',
+          click: () => {
+            manualUpdateCheck = true;
+            autoUpdater.checkForUpdates().catch((err: Error) => {
+              if (mainWindow) {
+                dialog.showMessageBox(mainWindow, {
+                  type: 'error',
+                  title: 'Update Error',
+                  message: `Failed to check for updates: ${err.message}`,
+                });
+              }
+              manualUpdateCheck = false;
+            });
+          }
+        },
       ]
     }
   ];
